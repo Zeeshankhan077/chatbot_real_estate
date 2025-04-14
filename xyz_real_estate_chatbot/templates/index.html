@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>XYZ Real Estate Bot</title>
+  <style>
+    * { box-sizing: border-box; margin:0; padding:0 }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: absolute;
+      width: 200%; height:200%;
+      background: radial-gradient(circle at 30% 30%, rgba(0,255,255,0.2), transparent 50%),
+                  radial-gradient(circle at 70% 70%, rgba(255,0,255,0.2), transparent 50%);
+      animation: bgRotate 20s linear infinite;
+      z-index: -1;
+    }
+
+    @keyframes bgRotate {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    .container {
+      width: 90vw;
+      max-width: 1200px;
+      height: 80vh;
+      display: flex;
+      position: relative;
+      box-shadow: 0 0 60px rgba(0,255,255,0.2);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .dashboard {
+      width: 300px;
+      background: rgba(10,10,10,0.9);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      color: #ddd;
+      overflow-y: auto;
+      max-height: 80vh;
+      flex-shrink: 0;
+      transform: translateX(-100%);
+      transition: transform .3s ease;
+    }
+
+    .dashboard.open { transform: translateX(0); }
+    .dashboard h2 {
+      color: #00ffff;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .dash-item {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-left: 4px solid #ff00ff;
+      border-radius: 6px;
+    }
+
+    .dash-item label {
+      display: block;
+      font-weight: bold;
+      color: #ff00ff;
+      margin-bottom: 6px;
+    }
+
+    .dash-item p { font-size: 0.9rem; word-wrap: break-word; }
+
+    .chat-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: rgba(15,15,15,0.8);
+      backdrop-filter: blur(5px);
+    }
+
+    .chat-panel::before {
+      content:'';
+      position:absolute;
+      top:-50%; left:-50%;
+      width:200%; height:200%;
+      background: linear-gradient(45deg, rgba(0,255,255,0.1), rgba(255,0,255,0.1));
+      animation: glow 8s linear infinite;
+      z-index: -1;
+    }
+
+    @keyframes glow {
+      0% { transform: rotate(0deg) scale(1.2); }
+      100% { transform: rotate(360deg) scale(1.2); }
+    }
+
+    .chat-header {
+      padding: 12px 20px;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chat-header h1 {
+      font-size:1.1rem;
+      color:#00ffff;
+    }
+
+    .dash-toggle {
+      background: #ff00ff;
+      border: none;
+      color: #111;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .chat-messages {
+      flex:1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .message {
+      max-width: 70%;
+      padding: 14px 18px;
+      border-radius: 16px;
+      animation: pop 0.3s ease-out;
+      position: relative;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(45deg,#ff00ff,#00ffff);
+      box-shadow: 0 0 20px rgba(0,255,255,0.6);
+      color:#111;
+    }
+
+    .message.bot {
+      align-self: flex-start;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(8px);
+      color:#fff;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.8); opacity:0 }
+      to   { transform: scale(1);   opacity:1 }
+    }
+
+    .input-bar {
+      padding: 12px 20px;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      border-top:1px solid #222;
+    }
+
+    .input-bar input {
+      flex:1;
+      padding:12px 16px;
+      border:none;
+      border-radius:20px;
+      background:#222;
+      color:#fff;
+      outline:none;
+      margin-right:10px;
+    }
+
+    .input-bar button {
+      padding:0 18px;
+      border:none;
+      background:#00ffff;
+      color:#111;
+      border-radius:20px;
+      cursor:pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Sidebar Dashboard -->
+    <div class="dashboard" id="dashboard">
+      <h2>Lead & CRM Info</h2>
+      <div class="dash-item"><label>Lead Score</label><p id="dashLeadScore">–</p></div>
+      <div class="dash-item"><label>Lead Status</label><p id="dashLeadStatus">–</p></div>
+      <div class="dash-item"><label>CRM Status</label><p id="dashCrmStatus">–</p></div>
+      <div class="dash-item"><label>CRM Response</label><p id="dashCrmResponse">–</p></div>
+      <div class="dash-item"><label>Raw LLM Reply</label><p id="dashRawReply" style="font-size:.8rem;">–</p></div>
+    </div>
+
+    <!-- Chat Panel -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <h1>XYZ Real Estate Bot</h1>
+        <button class="dash-toggle" onclick="toggleDashboard()">☰</button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="message bot"> I’m your real estate assistant. How can I help?</div>
+      </div>
+      <div class="input-bar">
+        <input id="msgInput" placeholder="Type your message…" onkeydown="if(event.key==='Enter') sendMessage()">
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const dashEl = document.getElementById('dashboard');
+    const chatEl = document.getElementById('chatMessages');
+    const inputEl = document.getElementById('msgInput');
+
+    function toggleDashboard(){
+      dashEl.classList.toggle('open');
+    }
+
+    async function sendMessage(){
+      const text = inputEl.value.trim();
+      if(!text) return;
+
+      // Add user message
+      let u = document.createElement('div');
+      u.className='message user'; u.textContent=text;
+      chatEl.appendChild(u);
+      chatEl.scrollTop = chatEl.scrollHeight;
+      inputEl.value='';
+
+      // Loading bubble
+      let load = document.createElement('div');
+      load.className='message bot'; load.textContent='…';
+      chatEl.appendChild(load);
+      chatEl.scrollTop = chatEl.scrollHeight;
+
+      // Call backend
+      const res = await fetch('/api/chat',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          name:'Test User',
+          email:'testuser@example.com',
+          message:text,
+          chat_history:''
+        })
+      });
+      const d = await res.json();
+
+      // Replace loading with real reply
+      chatEl.removeChild(load);
+      let b = document.createElement('div');
+      b.className='message bot'; b.textContent=d.answer;
+      chatEl.appendChild(b);
+      chatEl.scrollTop = chatEl.scrollHeight;
+
+      // Update dashboard (excluding chatbot answer)
+      document.getElementById('dashLeadScore').textContent   = d.lead_score;
+      document.getElementById('dashLeadStatus').textContent  = d.lead_status;
+      document.getElementById('dashCrmStatus').textContent   = d.crm_status;
+      document.getElementById('dashCrmResponse').textContent = d.crm_response;
+      document.getElementById('dashRawReply').textContent    = d.raw_llm_reply;
+    }
+  </script>
+</body>
+</html>
